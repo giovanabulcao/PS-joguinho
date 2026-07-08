@@ -200,11 +200,9 @@ static void draw_map() {
                 *DRAW_COLORS = 0x40;
                 rect(sx + 3, sy + 3, 2, 2);
             } else if (t == T_EXIT) {
-                if ((frames / 14) % 2 == 0) { *DRAW_COLORS = 0x21; }
-                else                         { *DRAW_COLORS = 0x31; }
+                if ((frames / 14) % 2 == 0) { *DRAW_COLORS = 0x22; }
+                else                         { *DRAW_COLORS = 0x44; }
                 rect(sx, sy, TILE, TILE);
-                *DRAW_COLORS = 0x40;
-                text(">", sx, sy);
             }
         }
     }
@@ -213,7 +211,8 @@ static void draw_map() {
 static void draw_player() {
     int sx = pcol * TILE;
     int sy = prow * TILE;
-    int c = 96 + (frames / 10) % 2;
+    int c = 96 + (frames / 10) % 2; // alterna entre 2 quadros pra animar o passo
+
     *DRAW_COLORS = 0x4320;
     blitSub(tiles4, sx, sy, 8, 8,
             (uint32_t)(c % 16) * 8, (uint32_t)(c / 16) * 8,
@@ -257,26 +256,69 @@ static void draw_hud() {
 
 static void update_enemies() {
     for (int i = 0; i < NUM_ENEMIES; i++) {
+
+        // Distância (em tiles) até o jogador, pra saber se ativa a perseguição.
+        int dc = pcol - enemies[i].col;
+        int dr = prow - enemies[i].row;
+        if (dc < 0) dc = -dc;
+        if (dr < 0) dr = -dr;
+        int distancia = dc + dr;
+
+        if (distancia <= CHASE_RADIUS) {
+            enemies[i].chasing = 1;
+        } else {
+            enemies[i].chasing = 0;
+        }
+
+        int velocidade = enemies[i].speed;
+        if (enemies[i].chasing == 1) {
+            velocidade = CHASE_SPEED;
+        }
+
         enemies[i].timer++;
-        if (enemies[i].timer < enemies[i].speed) continue;
+        if (enemies[i].timer < velocidade) continue;
         enemies[i].timer = 0;
 
-        int nc = enemies[i].col;
-        int nr = enemies[i].row;
+        if (enemies[i].chasing == 1) {
+            // Perseguição: anda um passo na direção do jogador.
+            // Primeiro tenta alinhar a coluna, depois a linha.
+            int nc = enemies[i].col;
+            int nr = enemies[i].row;
 
-        if (enemies[i].axis == 0) {
-            nc += (enemies[i].dir == 0 ? 1 : -1);
-            if (map_at(nc, nr) == T_WALL) {
-                enemies[i].dir = 1 - enemies[i].dir;
-            } else {
+            if (pcol > enemies[i].col) {
+                nc = nc + 1;
+            } else if (pcol < enemies[i].col) {
+                nc = nc - 1;
+            } else if (prow > enemies[i].row) {
+                nr = nr + 1;
+            } else if (prow < enemies[i].row) {
+                nr = nr - 1;
+            }
+
+            if (map_at(nc, nr) != T_WALL) {
                 enemies[i].col = nc;
+                enemies[i].row = nr;
             }
         } else {
-            nr += (enemies[i].dir == 0 ? 1 : -1);
-            if (map_at(nc, nr) == T_WALL) {
-                enemies[i].dir = 1 - enemies[i].dir;
+            // Patrulha normal: anda sempre pra frente no mesmo eixo,
+            // e vira quando bate numa parede.
+            int nc = enemies[i].col;
+            int nr = enemies[i].row;
+
+            if (enemies[i].axis == 0) {
+                nc += (enemies[i].dir == 0 ? 1 : -1);
+                if (map_at(nc, nr) == T_WALL) {
+                    enemies[i].dir = 1 - enemies[i].dir;
+                } else {
+                    enemies[i].col = nc;
+                }
             } else {
-                enemies[i].row = nr;
+                nr += (enemies[i].dir == 0 ? 1 : -1);
+                if (map_at(nc, nr) == T_WALL) {
+                    enemies[i].dir = 1 - enemies[i].dir;
+                } else {
+                    enemies[i].row = nr;
+                }
             }
         }
 
