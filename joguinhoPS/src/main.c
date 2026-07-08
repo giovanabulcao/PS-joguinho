@@ -19,6 +19,7 @@
 #define T_EXIT   3
 
 #define TOTAL_SHARDS 5
+#define TOTAL_SHARDS 6
 #define NUM_ENEMIES  6
 
 static const int MAP[ROWS][COLS] = {
@@ -61,6 +62,7 @@ static int prevBtn;
 // dir:  0=positivo (+col ou +row), 1=negativo
 // chasing: 0=patrulha normal, 1=perseguindo jogador
 #define CHASE_RADIUS   5   // distância em tiles para ativar perseguição
+#define CHASE_RADIUS   6   // distância em tiles para ativar perseguição
 #define CHASE_SPEED   14   // frames entre passos ao perseguir (mais rápido)
 
 typedef struct {
@@ -94,6 +96,10 @@ void start() {
     PALETTE[1] = 0x3d5a6e;  // paredes: azul-acinzentado médio
     PALETTE[2] = 0x7a9fb0;  // itens: azul claro acinzentado
     PALETTE[3] = 0xb8c9d4;  // texto/jogador: cinza claro
+    PALETTE[0] = 0x153c4a ;  // fundo: azul escuro
+    PALETTE[1] = 0x9c341a ;  // paredes(base): musgo / texto secundário: marrom
+    PALETTE[2] = 0x77b02a;  // paredes(musgo): texto em destaque: verde
+    PALETTE[3] = 0xf8ffb8;  // jogador: creme claro
 
     for (int r = 0; r < ROWS; r++)
         for (int c = 0; c < COLS; c++)
@@ -145,33 +151,49 @@ static void update_menu() {
     uint8_t pressed = btn & ~(uint8_t)prevBtn;
     prevBtn = btn;
 
+    // Limpa a tela
+    memset(FRAMEBUFFER, 0x00, 160 * 160 / 4);
+
+    // Fundo
     *DRAW_COLORS = 0x11;
     rect(0, 0, 160, 160);
 
-    *DRAW_COLORS = 0x40;
-    text("MAZE ESCAPE", 20, 10);
-    *DRAW_COLORS = 0x30;
-    text("-----------", 20, 18);
+    *DRAW_COLORS = 0x22;
+    rect(18, 8, 124, 16);
 
     *DRAW_COLORS = 0x40;
-    text("CONTROLS:", 4, 34);
-    *DRAW_COLORS = 0x30;
-    text("Arrows - Move", 4, 48);
-    text("X      - Collect", 4, 58);
-    text("         shard", 4, 68);
+    text("MAZE ESCAPE", 28, 12);
+
+    *DRAW_COLORS = 0x22;
+    rect(6, 34, 148, 38);
 
     *DRAW_COLORS = 0x40;
-    text("OBJECTIVE:", 4, 84);
-    *DRAW_COLORS = 0x30;
-    text("* Collect 5", 4, 98);
-    text("  shards", 4, 108);
-    text("* Reach exit >", 4, 118);
-    text("* Avoid enemies", 4, 128);
+    text("CONTROLS", 12, 38);
 
-    if ((frames / 20) % 2 == 0) {
+    *DRAW_COLORS = 0x30;
+    text("\x86\x87\x84\x85 Move", 12, 52);
+    text("\x80 Collect shard", 12, 62);
+
+    *DRAW_COLORS = 0x22;
+    rect(6, 82, 148, 50);
+
+    *DRAW_COLORS = 0x40;
+    text("OBJECTIVE", 12, 86);
+
+    *DRAW_COLORS = 0x30;
+    text("Collect 6 shards", 12, 100);
+    text("Reach exit >", 12, 110);
+    text("Avoid enemies", 12, 120);
+
+    *DRAW_COLORS = 0x22;
+    rect(18, 142, 124, 14);
+
+    if ((frames / 25) % 2 == 0)
         *DRAW_COLORS = 0x40;
-        text("Press X to play", 4, 148);
-    }
+    else
+        *DRAW_COLORS = 0x30;
+
+    text("Press X to play", 26, 146);
 
     if (pressed & BUTTON_1) {
         telaAtual = TELA_DUNGEON;
@@ -245,7 +267,7 @@ static void draw_hud() {
     itoa(buf, fragmentos);
     text(buf, 58, 1);
     *DRAW_COLORS = 0x30;
-    text("/5", 66, 1);
+    text("/6", 66, 1);
 
     if (msg_timer > 0) {
         *DRAW_COLORS = 0x11;
@@ -328,7 +350,7 @@ static void update_dungeon() {
         if (fragmentos >= TOTAL_SHARDS) {
             telaAtual = TELA_WIN;
         } else {
-            set_msg("Need all 5 shards!");
+            set_msg("Need all 6 shards!");
         }
     }
 
@@ -357,7 +379,7 @@ static void update_gameover() {
     itoa(buf, fragmentos);
     text(buf, 88, 92);
     *DRAW_COLORS = 0x30;
-    text("/5", 96, 92);
+    text("/6", 96, 92);
 
     if ((frames / 20) % 2 == 0) {
         *DRAW_COLORS = 0x40;
@@ -380,7 +402,7 @@ static void update_win() {
     text("YOU ESCAPED!", 16, 40);
 
     *DRAW_COLORS = 0x30;
-    text("All 5 shards", 24, 64);
+    text("All 6 shards", 24, 64);
     text("collected!", 32, 74);
     text("The exit is open!", 4, 90);
 
