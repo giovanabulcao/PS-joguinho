@@ -1,3 +1,4 @@
+#include <string.h>
 #include "wasm4.h"
 #include "tiles4.h"
 #include "util.h"
@@ -87,13 +88,46 @@ static void set_msg(const char *s) {
     msg_timer = 90;
 }
 
+// Desenha um texto centralizado horizontalmente na tela (cada caractere
+// tem FONT_SIZE pixels de largura, então calculamos o x pra deixar a
+// string inteira no meio dos 160px de largura da tela).
+static void text_centered(const char *s, int y, uint16_t color) {
+    int len = 0;
+    while (s[len]) len++;
+
+    int x = (SCREEN_SIZE - len * FONT_SIZE) / 2;
+    *DRAW_COLORS = color;
+    text(s, x, y);
+}
+
+// Desenha um texto com uma caixa de fundo própria, ligeiramente maior que
+// o texto, ao invés de depender do fundo embutido do text() (a cor 2 do
+// DRAW_COLORS), que cobre só o tamanho exato de cada caractere e deixa o
+// texto colado na borda da caixa, prejudicando a leitura.
+// fg/bg vão de 1 a 4 (cor da paleta) — não use valores em nibble aqui.
+static void draw_text_box(const char *s, int x, int y, uint16_t fg, uint16_t bg) {
+    int len = 0;
+    while (s[len]) len++;
+
+    const uint32_t pad_x = 3;
+    const uint32_t pad_y = 2;
+    uint32_t w = (uint32_t)len * FONT_SIZE + pad_x * 2;
+    uint32_t h = FONT_SIZE + pad_y * 2;
+
+    *DRAW_COLORS = bg;
+    rect(x - (int)pad_x, y - (int)pad_y, w, h);
+
+    *DRAW_COLORS = fg; // cor 2 fica 0 (transparente), então não sobrepõe a caixa
+    text(s, x, y);
+}
+
 // ─── start() ─────────────────────────────────────────────
 void start() {
-    // Paleta com contraste mais suave: tons de cinza-azulado
-    PALETTE[0] = 0x2b2d3b;  // fundo: cinza-azul escuro
-    PALETTE[1] = 0x3d5a6e;  // paredes: azul-acinzentado médio
-    PALETTE[2] = 0x7a9fb0;  // itens: azul claro acinzentado
-    PALETTE[3] = 0xb8c9d4;  // texto/jogador: cinza claro
+    // Paleta: azul escuro, azul médio, vermelho (destaque do ninja) e branco
+    PALETTE[0] = 0x14213d;  // fundo do dungeon: azul bem escuro
+    PALETTE[1] = 0x1f5673;  // paredes / fundo do menu: azul médio
+    PALETTE[2] = 0xff3131;  // destaque do ninja: vermelho vibrante
+    PALETTE[3] = 0xffffff;  // texto / jogador / fragmentos: branco
 
     for (int r = 0; r < ROWS; r++)
         for (int c = 0; c < COLS; c++)
@@ -145,32 +179,23 @@ static void update_menu() {
     uint8_t pressed = btn & ~(uint8_t)prevBtn;
     prevBtn = btn;
 
-    *DRAW_COLORS = 0x11;
-    rect(0, 0, 160, 160);
+    // Preenche a tela inteira com a cor de fundo 2 (PALETTE[1], azul médio),
+    // diferente do branco usado no texto, melhorando o contraste.
+    // 0b01010101 == 0x55 (não 0x66!): cada byte guarda 4 pixels de 2 bits,
+    // e repetir o valor bruto 1 (cor 2) em cada um deles dá 01 01 01 01 = 0x55.
+    memset(FRAMEBUFFER, 0x55, 160*160/4);
 
-    *DRAW_COLORS = 0x40;
-    text("MAZE ESCAPE", 20, 10);
-    *DRAW_COLORS = 0x30;
-    text("-----------", 20, 18);
+    text_centered("-----------", 42, 3);
+    text_centered("MAZE ESCAPE", 32, 4);
+    text_centered("-----------", 42, 3);
 
-    *DRAW_COLORS = 0x40;
-    text("CONTROLS:", 4, 34);
-    *DRAW_COLORS = 0x30;
-    text("Arrows - Move", 4, 48);
-    text("X      - Collect", 4, 58);
-    text("         shard", 4, 68);
-
-    *DRAW_COLORS = 0x40;
-    text("OBJECTIVE:", 4, 84);
-    *DRAW_COLORS = 0x30;
-    text("* Collect 5", 4, 98);
-    text("  shards", 4, 108);
-    text("* Reach exit >", 4, 118);
-    text("* Avoid enemies", 4, 128);
+    text_centered("CONTROLS:", 62, 4);
+    // \x84 \x85 \x86 \x87 = setas esquerda/direita/cima/baixo, \x80 = botao X
+    text_centered("\x84\x85\x86\x87 - Move", 78, 3);
+    text_centered("\x80 - Collect shard", 90, 3);
 
     if ((frames / 20) % 2 == 0) {
-        *DRAW_COLORS = 0x40;
-        text("Press X to play", 4, 148);
+        text_centered("Press \x80 to play", 118, 4);
     }
 
     if (pressed & BUTTON_1) {
@@ -189,15 +214,14 @@ static void draw_map() {
             if (t == T_WALL) {
                 *DRAW_COLORS = 0x22;
                 rect(sx, sy, TILE, TILE);
-                // borda sutil
-                *DRAW_COLORS = 0x32;
+                // borda branca
+                *DRAW_COLORS = 4;
                 rect(sx, sy, TILE - 1, 1);
                 rect(sx, sy, 1, TILE - 1);
             } else if (t == T_SHARD) {
-                *DRAW_COLORS = 0x30;
+                *DRAW_COLORS = 4; // branco (o 1o digito é o que rect() usa)
                 rect(sx + 3, sy + 0, 2, 8);
                 rect(sx + 0, sy + 3, 8, 2);
-                *DRAW_COLORS = 0x40;
                 rect(sx + 3, sy + 3, 2, 2);
             } else if (t == T_EXIT) {
                 if ((frames / 14) % 2 == 0) { *DRAW_COLORS = 0x22; }
@@ -238,19 +262,16 @@ static void draw_hud() {
     *DRAW_COLORS = 0x11;
     rect(0, 0, 160, 11);
 
-    *DRAW_COLORS = 0x30;
+    *DRAW_COLORS = 3;
     text("Shards:", 2, 1);
-    *DRAW_COLORS = 0x40;
+    *DRAW_COLORS = 4;
     itoa(buf, fragmentos);
     text(buf, 58, 1);
-    *DRAW_COLORS = 0x30;
+    *DRAW_COLORS = 3;
     text("/5", 66, 1);
 
     if (msg_timer > 0) {
-        *DRAW_COLORS = 0x11;
-        rect(0, 140, 160, 20);
-        *DRAW_COLORS = 0x40;
-        text(msg, 4, 144);
+        draw_text_box(msg, 6, 146, 4, 1);
     }
 }
 
@@ -388,22 +409,25 @@ static void update_gameover() {
     *DRAW_COLORS = 0x11;
     rect(0, 0, 160, 160);
 
-    *DRAW_COLORS = 0x20;
-    text("GAME OVER", 32, 50);
-    *DRAW_COLORS = 0x30;
-    text("Caught by enemy!", 4, 70);
+    text_centered("GAME OVER", 50, 2);
+    text_centered("Caught by enemy!", 64, 3);
 
-    char buf[16];
-    *DRAW_COLORS = 0x40;
-    text("Shards:", 32, 92);
-    itoa(buf, fragmentos);
-    text(buf, 88, 92);
-    *DRAW_COLORS = 0x30;
-    text("/5", 96, 92);
+    // monta "Shards: N/5" numa string só, pra dar pra centralizar de uma vez
+    char linha[24];
+    int i = 0;
+    const char *rotulo = "Shards: ";
+    while (rotulo[i]) { linha[i] = rotulo[i]; i++; }
+    char num[16];
+    itoa(num, fragmentos);
+    int j = 0;
+    while (num[j]) { linha[i++] = num[j++]; }
+    linha[i++] = '/';
+    linha[i++] = '5';
+    linha[i] = '\0';
+    text_centered(linha, 90, 4);
 
     if ((frames / 20) % 2 == 0) {
-        *DRAW_COLORS = 0x40;
-        text("Press X to retry", 4, 130);
+        text_centered("Press \x80 to retry", 120, 4);
     }
 
     uint8_t btn = *GAMEPAD1;
@@ -417,19 +441,16 @@ static void update_win() {
     *DRAW_COLORS = 0x11;
     rect(0, 0, 160, 160);
 
-    if ((frames / 10) % 2 == 0) { *DRAW_COLORS = 0x40; }
-    else                         { *DRAW_COLORS = 0x30; }
-    text("YOU ESCAPED!", 16, 40);
+    uint16_t cor_piscando = ((frames / 10) % 2 == 0) ? 4 : 3;
+    text_centered("YOU ESCAPED!", 40, cor_piscando);
 
-    *DRAW_COLORS = 0x30;
-    text("All 5 shards", 24, 64);
-    text("collected!", 32, 74);
-    text("The exit is open!", 4, 90);
+    text_centered("All 5 shards", 64, 3);
+    text_centered("collected!", 74, 3);
+    text_centered("The exit is open!", 90, 3);
 
     if ((frames / 20) % 2 == 0) {
-        *DRAW_COLORS = 0x40;
-        text("Press X to play", 4, 130);
-        text("again", 56, 140);
+        text_centered("Press \x80 to play", 120, 4);
+        text_centered("again", 130, 4);
     }
 
     uint8_t btn = *GAMEPAD1;
