@@ -3,11 +3,20 @@
 #include "tiles4.h"
 #include "util.h"
 
+// sons definidos em sfx_simple.c
+extern void play(int id);
+#define SFX_MENU_MOVE   8
+#define SFX_MENU_SELECT 9
+#define SFX_POWERUP     7
+#define SFX_HURT        6
+
+
 // ─── Telas ───────────────────────────────────────────────
-#define TELA_MENU     0
-#define TELA_DUNGEON  1
-#define TELA_GAMEOVER 2
-#define TELA_WIN      3
+#define TELA_HISTORIA 0
+#define TELA_MENU     1
+#define TELA_DUNGEON  2
+#define TELA_GAMEOVER 3
+#define TELA_WIN      4
 
 // ─── Mapa ────────────────────────────────────────────────
 #define TILE  8
@@ -63,6 +72,7 @@ static int fragmentos;
 static int msg_timer;
 static char msg[32];
 static int prevBtn;
+static int historiaPag;    // página atual da tela de história
 
 // ─── Inimigos ─────────────────────────────────────────────
 // Inimigos se movem tile a tile, alinhados ao grid.
@@ -129,12 +139,49 @@ static void draw_text_box(const char *s, int x, int y, uint16_t fg, uint16_t bg)
     text(s, x, y);
 }
 
+// ─── Caixinha de fala da história ──────────────
+// Desenha um balão retangular com borda, com um pequeno "rabinho"
+static void draw_speech_box(const char *l1, const char *l2, const char *l3,
+                             int x, int y, uint32_t w, uint32_t h) {
+    // fundo do balão (branco, cor 4)
+    *DRAW_COLORS = 4;
+    rect(x, y, w, h);
+ 
+    // borda externa (cor 2, azul médio) 2px
+    *DRAW_COLORS = 2;
+    rect(x, y, w, 2);                    // topo
+    rect(x, y + (int)h - 2, w, 2);       // base
+    rect(x, y, 2, h);                    // esquerda
+    rect(x + (int)w - 2, y, 2, h);       // direita
+ 
+    // "rabinho" do balão apontando pra baixo, no canto esquerdo
+    int tx = x + 14;
+    int ty = y + (int)h;
+    rect(tx, ty, 10, 8);         // corpo do rabinho
+    *DRAW_COLORS = 4;
+    rect(tx + 2, ty, 6, 6);      // preenche por dentro, deixando borda de 2px
+ 
+    // texto dentro do balão, uma linha por vez
+    *DRAW_COLORS = 2;
+    if (l1) text(l1, x + 8, y + 8);
+    if (l2) text(l2, x + 8, y + 8 + (FONT_SIZE + 4));
+    if (l3) text(l3, x + 8, y + 8 + (FONT_SIZE + 4) * 2);
+}
+ 
+// desenha o ninja numa pose parada
+static void draw_hero_portrait(int x, int y) {
+    *DRAW_COLORS = 0x4320;
+    blitSub(tiles4, x, y, 8, 8, 96 % 16 * 8, 96 / 16 * 8, tiles4Width, BLIT_2BPP);
+}
+ 
+
 // ─── start() ─────────────────────────────────────────────
 void start() {
-    PALETTE[0] = COR_FUNDO;
-    PALETTE[1] = COR_PAREDE;
-    PALETTE[2] = COR_NINJA;
-    PALETTE[3] = COR_BRANCO;
+    // Paleta: azul escuro, azul médio, vermelho e branco
+    PALETTE[0] = 0x14213d;  // fundo do dungeon: azul bem escuro
+    PALETTE[1] = 0x1f5673;  // paredes / fundo do menu: azul médio
+    PALETTE[2] = 0xff3131;  // destaque do ninja: vermelho vibrante
+    PALETTE[3] = 0xffffff;  // texto / jogador / fragmentos: branco
 
     for (int r = 0; r < ROWS; r++)
         for (int c = 0; c < COLS; c++)
@@ -148,7 +195,7 @@ void start() {
     msg[0]     = '\0';
     msg_timer  = 0;
     prevBtn    = 0;
-    telaAtual  = TELA_MENU;
+    telaAtual  = TELA_HISTORIA;
 
     // Inimigo 0: horizontal, linha 1, col 7..18
     enemies[0].col = 5;  enemies[0].row = 2;
@@ -180,7 +227,81 @@ void start() {
     }
 }
 
-// ─── MENU ────────────────────────────────────────────────
+// ─── HISTORIA ────────────────────────────────────────────────
+#define HIST_PAGINAS 3
+
+static void draw_historia_fundo(int pag) {
+    // Fundo azul escuro do dungeon (cor 1) em toda a tela
+    memset(FRAMEBUFFER, 0x00, 160*160/4);
+ 
+    // Umas "pedras" decorando o topo e a base
+    *DRAW_COLORS = 2;
+    for (int c = 0; c < COLS; c++) {
+        rect(c * TILE, 0, TILE - 1, TILE - 1);
+        rect(c * TILE, 152, TILE - 1, TILE - 1);
+    }
+ 
+    // Um brilho de fragmento decorativo, sugerindo tesouro
+    if (pag == 1) {
+        *DRAW_COLORS = 4;
+        rect(140, 60, 2, 8);
+        rect(137, 63, 8, 2);
+        rect(140, 63, 2, 2);
+    }
+ 
+    // Um inimigo espreitando ao fundo na página
+    if (pag == 2) {
+        *DRAW_COLORS = 2;
+        rect(120 + 1, 40 + 1, 6, 6);
+        *DRAW_COLORS = 3;
+        rect(120 + 2, 40 + 2, 2, 2);
+        rect(120 + 4, 40 + 2, 2, 2);
+    }
+}
+
+static void update_historia() {
+    uint8_t btn = *GAMEPAD1;
+    uint8_t pressed = btn & ~(uint8_t)prevBtn;
+    prevBtn = btn;
+ 
+    draw_historia_fundo(historiaPag);
+    draw_hero_portrait(16, 60);
+ 
+    if (historiaPag == 0) {
+        draw_speech_box("I am Kiro, a",
+                         "hunter of cursed",
+                         "treasures. Yes, I am",
+                         34, 40, 122, 44);
+    } else if (historiaPag == 1) {
+        draw_speech_box("They say there are briliant",
+                         "shards hidden in this",
+                         "dungeon.",
+                         34, 40, 122, 44);
+    } else {
+        draw_speech_box("There's just one problem:",
+                         "it's full of",
+                         "irritable creatures!",
+                         34, 40, 122, 44);
+    }
+ 
+    text_centered("MAZE ESCAPE", 14, 4);
+ 
+    if ((frames / 20) % 2 == 0) {
+        text_centered("Press a button", 128, 3);
+    }
+ 
+    // qualquer botão avança a página (ou entra no menu na última)
+    if (pressed != 0) {
+        if (historiaPag < HIST_PAGINAS - 1) {
+            historiaPag++;
+            play(SFX_MENU_MOVE);
+        } else {
+            telaAtual = TELA_MENU;
+            play(SFX_MENU_SELECT);
+        }
+    }
+}
+
 static void update_menu() {
     uint8_t btn = *GAMEPAD1;
     uint8_t pressed = btn & ~(uint8_t)prevBtn;
@@ -192,14 +313,14 @@ static void update_menu() {
     // e repetir o valor bruto 1 (cor 2) em cada um deles dá 01 01 01 01 = 0x55.
     memset(FRAMEBUFFER, 0x55, 160*160/4);
 
-    text_centered("-----------", 42, 3);
+    text_centered("------------", 22, 3);
     text_centered("MAZE ESCAPE", 32, 4);
-    text_centered("-----------", 42, 3);
+    text_centered("------------", 42, 3);
 
     text_centered("CONTROLS:", 62, 4);
     // \x84 \x85 \x86 \x87 = setas esquerda/direita/cima/baixo, \x80 = botao X
-    text_centered("\x84\x85\x86\x87 - Move", 78, 3);
-    text_centered("\x80 - Collect shard", 90, 3);
+    text("\x84\x85\x86\x87 - Move", 14, 80);
+    text("\x80 - Collect shard", 14, 90);
 
     if ((frames / 20) % 2 == 0) {
         text_centered("Press \x80 to play", 118, 4);
@@ -242,7 +363,7 @@ static void draw_map() {
 static void draw_player() {
     int sx = pcol * TILE;
     int sy = prow * TILE;
-    int c = 96 + (frames / 10) % 2; // alterna entre 2 quadros pra animar o passo
+    int c = 96 + (frames / 10) % 2; //alterna entre 2 quadros pra animar o passo
 
     // corpo do ninja na cor do personagem, detalhe na cor da parede e o
     // realce (faixa) na cor dos inimigos — nunca usa a cor do fundo, então
@@ -371,7 +492,7 @@ static void update_dungeon() {
     uint8_t pressed = btn & ~(uint8_t)prevBtn;
     prevBtn = btn;
 
-    // Movimento tile a tile: só move em pressed (não em btn)
+    // Movimento de tile a tile
     int dc = 0, dr = 0;
     if (pressed & BUTTON_RIGHT) dc =  1;
     if (pressed & BUTTON_LEFT)  dc = -1;
@@ -386,7 +507,7 @@ static void update_dungeon() {
         prow = nr;
     }
 
-    // coleta com X — tenta pegar shard na posição atual
+    // coleta com X - tenta pegar shard na posição atual
     if (pressed & BUTTON_1) {
         if (map_at(pcol, prow) == T_SHARD) {
             fragmentos++;
@@ -429,7 +550,7 @@ static void update_gameover() {
     text_centered("GAME OVER", 50, 2);
     text_centered("Caught by enemy!", 64, 3);
 
-    // monta "Shards: N/5" numa string só, pra dar pra centralizar de uma vez
+    // monta "Shards: N/6" numa string só, pra dar pra centralizar de uma vez
     char linha[24];
     int i = 0;
     const char *rotulo = "Shards: ";
@@ -439,7 +560,7 @@ static void update_gameover() {
     int j = 0;
     while (num[j]) { linha[i++] = num[j++]; }
     linha[i++] = '/';
-    linha[i++] = '5';
+    linha[i++] = '6';
     linha[i] = '\0';
     text_centered(linha, 90, 4);
 
@@ -462,7 +583,7 @@ static void update_win() {
     uint16_t cor_piscando = ((frames / 10) % 2 == 0) ? 4 : 3;
     text_centered("YOU ESCAPED!", 40, cor_piscando);
 
-    text_centered("All 5 shards", 64, 3);
+    text_centered("All 6 shards", 64, 3);
     text_centered("collected!", 74, 3);
     text_centered("The exit is open!", 90, 3);
 
@@ -480,7 +601,9 @@ static void update_win() {
 // ─── update() ────────────────────────────────────────────
 void update() {
     frames++;
-    if(telaAtual==TELA_MENU){
+    if(telaAtual==TELA_HISTORIA){
+    update_historia();
+    }else if(telaAtual==TELA_MENU){
         update_menu();
     }else if(telaAtual==TELA_DUNGEON){
         update_dungeon();
