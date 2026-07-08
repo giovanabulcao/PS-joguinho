@@ -5,16 +5,16 @@ date: 2026-07-08
 
 # Maze Escape
 
-Inspired by the classic maze games, Maze Escape drops you into a dark dungeon where every corridor might hide a shard — or an enemy. Your mission is to explore, collect everything you can, and escape alive.
+Inspired by the classic maze games, Maze Escape drops you into a dark dungeon where every corridor might hide a shard or... an enemy. Your mission is to explore, collect everything you can, and escape alive.
 
 Fast reflexes and a good sense of direction are your best weapons. **Good luck!!**
 
 ## How to Play
 
-- Collect the **5 shards** scattered across the maze.
+- Collect the **6 shards** scattered across the maze.
 - If an enemy catches you, it's **game over**.
 - Some enemies patrol fixed routes, but start **chasing** the player once he gets close.
-- The exit (marked with `>`) only unlocks victory once **all 5 shards** have been collected.
+- The exit (marked with `>`) only unlocks victory once **all 6 shards** have been collected.
 
 ## Controls
 
