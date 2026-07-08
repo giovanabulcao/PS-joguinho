@@ -19,8 +19,15 @@
 #define T_SHARD  2
 #define T_EXIT   3
 
-#define TOTAL_SHARDS 5
+#define TOTAL_SHARDS 6
 #define NUM_ENEMIES  6
+
+// ─── Paleta ─────────────────────────────────────────────
+#define COR_FUNDO    0x2e222f  
+#define COR_PAREDE   0x9babb2  
+#define COR_NINJA    0xc32454 
+#define COR_BRANCO   0xffffff  
+
 
 static const int MAP[ROWS][COLS] = {
     {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
@@ -46,12 +53,13 @@ static const int MAP[ROWS][COLS] = {
 };
 
 static int map[ROWS][COLS];
+static int frames; // forward-declarado aqui pra poder ser usado no ciclo de cores abaixo
+
 
 // ─── Estado global ────────────────────────────────────────
 static int telaAtual;
 static int pcol, prow;     // posição do jogador em tiles (colunas/linhas)
 static int fragmentos;
-static int frames;
 static int msg_timer;
 static char msg[32];
 static int prevBtn;
@@ -62,7 +70,7 @@ static int prevBtn;
 // dir:  0=positivo (+col ou +row), 1=negativo
 // chasing: 0=patrulha normal, 1=perseguindo jogador
 #define CHASE_RADIUS   5   // distância em tiles para ativar perseguição
-#define CHASE_SPEED   14   // frames entre passos ao perseguir (mais rápido)
+#define CHASE_SPEED   15   // frames entre passos ao perseguir (mais rápido)
 
 typedef struct {
     int col, row;
@@ -123,11 +131,10 @@ static void draw_text_box(const char *s, int x, int y, uint16_t fg, uint16_t bg)
 
 // ─── start() ─────────────────────────────────────────────
 void start() {
-    // Paleta: azul escuro, azul médio, vermelho (destaque do ninja) e branco
-    PALETTE[0] = 0x14213d;  // fundo do dungeon: azul bem escuro
-    PALETTE[1] = 0x1f5673;  // paredes / fundo do menu: azul médio
-    PALETTE[2] = 0xff3131;  // destaque do ninja: vermelho vibrante
-    PALETTE[3] = 0xffffff;  // texto / jogador / fragmentos: branco
+    PALETTE[0] = COR_FUNDO;
+    PALETTE[1] = COR_PAREDE;
+    PALETTE[2] = COR_NINJA;
+    PALETTE[3] = COR_BRANCO;
 
     for (int r = 0; r < ROWS; r++)
         for (int c = 0; c < COLS; c++)
@@ -144,28 +151,28 @@ void start() {
     telaAtual  = TELA_MENU;
 
     // Inimigo 0: horizontal, linha 1, col 7..18
-    enemies[0].col = 7;  enemies[0].row = 1;
-    enemies[0].dir = 0;  enemies[0].axis = 0; enemies[0].speed = 18;
+    enemies[0].col = 5;  enemies[0].row = 2;
+    enemies[0].dir = 0;  enemies[0].axis = 0; enemies[0].speed = 20;
 
     // Inimigo 1: vertical, col 16, linha 1..7
-    enemies[1].col = 16; enemies[1].row = 1;
-    enemies[1].dir = 0;  enemies[1].axis = 1; enemies[1].speed = 22;
+    enemies[1].col = 17; enemies[1].row = 7;
+    enemies[1].dir = 0;  enemies[1].axis = 1; enemies[1].speed = 20;
 
     // Inimigo 2: horizontal, linha 9, col 6..11
-    enemies[2].col = 6;  enemies[2].row = 9;
-    enemies[2].dir = 0;  enemies[2].axis = 0; enemies[2].speed = 15;
+    enemies[2].col = 10;  enemies[2].row = 10;
+    enemies[2].dir = 0;  enemies[2].axis = 0; enemies[2].speed = 20;
 
     // Inimigo 3: vertical, col 6, linha 9..18
-    enemies[3].col = 6;  enemies[3].row = 14;
+    enemies[3].col = 12;  enemies[3].row = 15;
     enemies[3].dir = 1;  enemies[3].axis = 1; enemies[3].speed = 20;
 
     // Inimigo 4: horizontal, linha 15, col 2..12
-    enemies[4].col = 2;  enemies[4].row = 15;
-    enemies[4].dir = 0;  enemies[4].axis = 0; enemies[4].speed = 25;
+    enemies[4].col = 7;  enemies[4].row = 16;
+    enemies[4].dir = 0;  enemies[4].axis = 0; enemies[4].speed = 20;
 
     // Inimigo 5: vertical, col 18, linha 1..17
-    enemies[5].col = 18; enemies[5].row = 7;
-    enemies[5].dir = 1;  enemies[5].axis = 1; enemies[5].speed = 17;
+    enemies[5].col = 16; enemies[5].row = 16;
+    enemies[5].dir = 1;  enemies[5].axis = 1; enemies[5].speed = 20;
 
     for (int i = 0; i < NUM_ENEMIES; i++) {
         enemies[i].timer   = 0;
@@ -179,8 +186,8 @@ static void update_menu() {
     uint8_t pressed = btn & ~(uint8_t)prevBtn;
     prevBtn = btn;
 
-    // Preenche a tela inteira com a cor de fundo 2 (PALETTE[1], azul médio),
-    // diferente do branco usado no texto, melhorando o contraste.
+    // Preenche a tela inteira com a cor de fundo 2 (PALETTE[1], marrom),
+    // diferente do creme usado no texto, melhorando o contraste.
     // 0b01010101 == 0x55 (não 0x66!): cada byte guarda 4 pixels de 2 bits,
     // e repetir o valor bruto 1 (cor 2) em cada um deles dá 01 01 01 01 = 0x55.
     memset(FRAMEBUFFER, 0x55, 160*160/4);
@@ -237,7 +244,10 @@ static void draw_player() {
     int sy = prow * TILE;
     int c = 96 + (frames / 10) % 2; // alterna entre 2 quadros pra animar o passo
 
-    *DRAW_COLORS = 0x4320;
+    // corpo do ninja na cor do personagem, detalhe na cor da parede e o
+    // realce (faixa) na cor dos inimigos — nunca usa a cor do fundo, então
+    // o personagem jamais fica igual ao fundo, mesmo com o fundo ciclando
+    *DRAW_COLORS = 0x4230;
     blitSub(tiles4, sx, sy, 8, 8,
             (uint32_t)(c % 16) * 8, (uint32_t)(c / 16) * 8,
             tiles4Width, BLIT_2BPP);
@@ -247,12 +257,14 @@ static void draw_enemies() {
     for (int i = 0; i < NUM_ENEMIES; i++) {
         int sx = enemies[i].col * TILE;
         int sy = enemies[i].row * TILE;
-        *DRAW_COLORS = 0x21;
-        rect(sx + 1, sy + 1, 6, 6);
-        *DRAW_COLORS = 0x31;
-        rect(sx + 2, sy + 2, 2, 2);
-        rect(sx + 4, sy + 2, 2, 2);
-        rect(sx + 2, sy + 5, 4, 1);
+        // caveirinhas do tiles4 (2 quadros de animação, tiles 112 e 113),
+        // cada inimigo com uma fase diferente pra não animarem todos juntos
+        int c = 112 + (frames / 10 + i) % 2;
+        // crânio na cor dos inimigos (branco), olhos vazados na cor do fundo
+        *DRAW_COLORS = 0x4010;
+        blitSub(tiles4, sx, sy, 8, 8,
+                (uint32_t)(c % 16) * 8, (uint32_t)(c / 16) * 8,
+                tiles4Width, BLIT_2BPP);
     }
 }
 
@@ -268,7 +280,7 @@ static void draw_hud() {
     itoa(buf, fragmentos);
     text(buf, 58, 1);
     *DRAW_COLORS = 3;
-    text("/5", 66, 1);
+    text("/6", 66, 1);
 
     if (msg_timer > 0) {
         draw_text_box(msg, 6, 146, 4, 1);
@@ -351,6 +363,10 @@ static void update_enemies() {
 }
 
 static void update_dungeon() {
+    // fundo cicla lentamente por toda a paleta — nunca pode dar a mesma
+    // cor do personagem, pois os índices reservados são pulados
+    PALETTE[0] = COR_FUNDO;
+
     uint8_t btn = *GAMEPAD1;
     uint8_t pressed = btn & ~(uint8_t)prevBtn;
     prevBtn = btn;
@@ -391,7 +407,7 @@ static void update_dungeon() {
         if (fragmentos >= TOTAL_SHARDS) {
             telaAtual = TELA_WIN;
         } else {
-            set_msg("Need all 5 shards!");
+            set_msg("Need all 6 shards!");
         }
     }
 
@@ -406,6 +422,7 @@ static void update_dungeon() {
 
 // ─── GAMEOVER ────────────────────────────────────────────
 static void update_gameover() {
+    PALETTE[0] = COR_FUNDO; 
     *DRAW_COLORS = 0x11;
     rect(0, 0, 160, 160);
 
@@ -438,6 +455,7 @@ static void update_gameover() {
 
 // ─── WIN ─────────────────────────────────────────────────
 static void update_win() {
+    PALETTE[0] = COR_FUNDO; // fundo fixo (quase preto) nesta tela
     *DRAW_COLORS = 0x11;
     rect(0, 0, 160, 160);
 
@@ -472,3 +490,4 @@ void update() {
         update_win();
     }
 }
+
