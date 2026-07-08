@@ -134,21 +134,21 @@ static void draw_text_box(const char *s, int x, int y, uint16_t fg, uint16_t bg)
 // ─── Caixinha de fala da história ──────────────
 // Desenha um balão retangular com borda, com um pequeno "rabinho"
 static void draw_speech_box(const char *l1, const char *l2, const char *l3,
-                             int x, int y, int w, int h) {
+                             int x, int y, uint32_t w, uint32_t h) {
     // fundo do balão (branco, cor 4)
     *DRAW_COLORS = 4;
     rect(x, y, w, h);
  
     // borda externa (cor 2, azul médio) 2px
     *DRAW_COLORS = 2;
-    rect(x, y, w, 2);            // topo
-    rect(x, y + h - 2, w, 2);    // base
-    rect(x, y, 2, h);            // esquerda
-    rect(x + w - 2, y, 2, h);    // direita
+    rect(x, y, w, 2);                    // topo
+    rect(x, y + (int)h - 2, w, 2);       // base
+    rect(x, y, 2, h);                    // esquerda
+    rect(x + (int)w - 2, y, 2, h);       // direita
  
     // "rabinho" do balão apontando pra baixo, no canto esquerdo
     int tx = x + 14;
-    int ty = y + h;
+    int ty = y + (int)h;
     rect(tx, ty, 10, 8);         // corpo do rabinho
     *DRAW_COLORS = 4;
     rect(tx + 2, ty, 6, 6);      // preenche por dentro, deixando borda de 2px
@@ -594,3 +594,4 @@ void update() {
         update_win();
     }
 }
+
