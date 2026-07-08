@@ -18,7 +18,6 @@
 #define T_SHARD  2
 #define T_EXIT   3
 
-#define TOTAL_SHARDS 5
 #define TOTAL_SHARDS 6
 #define NUM_ENEMIES  6
 
@@ -61,7 +60,6 @@ static int prevBtn;
 // axis: 0=horizontal, 1=vertical
 // dir:  0=positivo (+col ou +row), 1=negativo
 // chasing: 0=patrulha normal, 1=perseguindo jogador
-#define CHASE_RADIUS   5   // distância em tiles para ativar perseguição
 #define CHASE_RADIUS   6   // distância em tiles para ativar perseguição
 #define CHASE_SPEED   14   // frames entre passos ao perseguir (mais rápido)
 
@@ -92,10 +90,6 @@ static void set_msg(const char *s) {
 // ─── start() ─────────────────────────────────────────────
 void start() {
     // Paleta com contraste mais suave: tons de cinza-azulado
-    PALETTE[0] = 0x2b2d3b;  // fundo: cinza-azul escuro
-    PALETTE[1] = 0x3d5a6e;  // paredes: azul-acinzentado médio
-    PALETTE[2] = 0x7a9fb0;  // itens: azul claro acinzentado
-    PALETTE[3] = 0xb8c9d4;  // texto/jogador: cinza claro
     PALETTE[0] = 0x153c4a ;  // fundo: azul escuro
     PALETTE[1] = 0x9c341a ;  // paredes(base): musgo / texto secundário: marrom
     PALETTE[2] = 0x77b02a;  // paredes(musgo): texto em destaque: verde
