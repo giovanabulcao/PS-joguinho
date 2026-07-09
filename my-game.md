@@ -3,9 +3,9 @@ author: Giovana da Silva Bulcão <giovanabulcao>, Cintia da Silva Bulcão <cinti
 date: 2026-07-08
 ---
 
-# Maze Escape
+# Dungeons of Shards
 
-Inspired by the classic maze games, Maze Escape drops you into a dark dungeon where every corridor might hide a shard or... an enemy. Your mission is to explore, collect everything you can, and escape alive.
+Inspired by the classic maze games, Dungeons of Shards drops you into a dark dungeon where every corridor might hide a shard or... an enemy. Your mission is to explore, collect everything you can, and escape alive.
 
 Fast reflexes and a good sense of direction are your best weapons. **Good luck!!**
 
