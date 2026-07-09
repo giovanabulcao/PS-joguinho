@@ -1,7 +1,7 @@
 #include "wasm4.h"
 #include "util.h"
 
-int pget(int x, int y) {
+int pget(int x, int y) { // le a cor de um pixel
   if (x < 0 || x > 159 || y < 0 || y > 159) { return 0; } // outside screen
   int idx = (y*160 + x) >> 2;
   int shift = (x & 0b11) << 1;
@@ -9,7 +9,7 @@ int pget(int x, int y) {
   return ((FRAMEBUFFER[idx] & mask) >> shift) + 1;
 }
 
-void pset(int x, int y, int c) {
+void pset(int x, int y, int c)  { // desenha um pixel
   if (x < 0 || x > 159 || y < 0 || y > 159) { return; } // outside screen
   if (c == 0) { return; } // ignore transparent color
   int idx = (y*160 + x) >> 2;
@@ -18,6 +18,7 @@ void pset(int x, int y, int c) {
   FRAMEBUFFER[idx] = (uint8_t) ((c-1) << shift) | (FRAMEBUFFER[idx] & ~mask);
 }
 
+// funções de colisão
 int hit_point_point(Shape sh1, Shape sh2) {
   return sh2.x == sh1.x && sh2.y == sh1.y;
 }
@@ -66,6 +67,7 @@ int hit_circle_box(Shape sh1, Shape sh2) {
   return dx * dx + dy * dy < sh1.w * sh1.w;
 }
 
+// transforma um inteiro em string
 void itoa(char *buf, int n) {
   int i = 0;
   if (n == 0) {
