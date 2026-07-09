@@ -3,6 +3,26 @@
 #include "tiles4.h"
 #include "util.h"
 
+// ─── Sons ────────────────────────────────────────────────
+// tone(frequency, duration, volume, flags) -> https://wasm4.org/docs/guides/audio
+#define SFX_SELECT 0
+#define SFX_MOVE   1
+#define SFX_SHARD  2
+#define SFX_HURT   3
+#define SFX_WIN    4
+#define SFX_BLOCK  5
+
+void play(int id) {
+    switch (id) {
+    case SFX_SELECT: tone(880, 12 | (6 << 8), 80, TONE_PULSE1 | TONE_MODE3); break;             // menu select
+    case SFX_MOVE:   tone(700, 6, 70, TONE_TRIANGLE); break;                                     // menu move
+    case SFX_SHARD:  tone(988 | (1319 << 16), 8 | (18 << 8), 90, TONE_PULSE1 | TONE_MODE2); break; // coin blip
+    case SFX_HURT:   tone(440 | (220 << 16), 18 | (10 << 8), 90, TONE_PULSE1 | TONE_MODE2); break; // hurt
+    case SFX_WIN:    tone(523 | (1047 << 16), 30 | (20 << 8), 90, TONE_PULSE1 | TONE_MODE2); break; // chime up
+    case SFX_BLOCK:  tone(800, 10 | (6 << 8), 80, TONE_NOISE); break;                            // zap
+    }
+}
+
 // ─── Telas ───────────────────────────────────────────────
 #define TELA_MENU     0
 #define TELA_HISTORIA 1
@@ -338,9 +358,11 @@ static void update_historia() {
     // qualquer botão avança a página (ou entra na dungeon na última)
     if (pressed != 0) {
         if (historiaPag < HIST_PAGINAS - 1) {
+            play(SFX_MOVE);
             historiaPag++;
             
         } else {
+            play(SFX_SELECT);
             telaAtual = TELA_DUNGEON;
             
         }
@@ -372,6 +394,7 @@ static void update_menu() {
     }
  
     if (pressed & BUTTON_1) {
+        play(SFX_SELECT);
         telaAtual = TELA_HISTORIA;
     }
 }
@@ -528,6 +551,7 @@ static void update_enemies() {
         // inimigo se move), senão dá pra atravessar um inimigo parado
         // sem morrer até ele dar o próximo passo.
         if (enemies[i].col == pcol && enemies[i].row == prow) {
+            play(SFX_HURT);
             telaAtual = TELA_GAMEOVER;
         }
     }
@@ -560,6 +584,7 @@ static void update_dungeon() {
     // coleta com X — tenta pegar shard na posição atual
     if (pressed & BUTTON_1) {
         if (map_at(pcol, prow) == T_SHARD) {
+            play(SFX_SHARD);
             fragmentos++;
             map[prow][pcol] = T_FLOOR;
             set_msg("Shard collected!");
@@ -568,16 +593,20 @@ static void update_dungeon() {
 
     // shard também coletado ao andar em cima
     if (map_at(pcol, prow) == T_SHARD) {
+        play(SFX_SHARD);
         fragmentos++;
         map[prow][pcol] = T_FLOOR;
         set_msg("Shard collected!");
     }
 
-    // saída
+    // saída — dc/dr != 0 garante que o som toca só no passo que chega
+    // na saída, não em todo frame parado em cima dela
     if (map_at(pcol, prow) == T_EXIT) {
         if (fragmentos >= TOTAL_SHARDS) {
+            if (dc != 0 || dr != 0) play(SFX_WIN);
             telaAtual = TELA_WIN;
         } else {
+            if (dc != 0 || dr != 0) play(SFX_BLOCK);
             set_msg("Need all 6 shards!");
         }
     }
