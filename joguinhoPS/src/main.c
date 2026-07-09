@@ -349,7 +349,7 @@ static void update_historia() {
                          HIST_BOX_X, HIST_BOX_Y, HIST_BOX_W, HIST_BOX_H);
     }
  
-    text_centered("MAZE ESCAPE", 130, 4);
+    text_centered("DUNGEONS OF SHARDS", 130, 4);
  
     if ((frames / 20) % 2 == 0) {
         text_centered("Press a button", 144, 3);
@@ -381,7 +381,7 @@ static void update_menu() {
     memset(FRAMEBUFFER, 0x55, 160*160/4);
  
     text_centered("------------", 22, 3);
-    text_centered("MAZE ESCAPE", 32, 4);
+    text_centered("DUNGEONS OF SHARDS", 32, 4);
     text_centered("------------", 42, 3);
  
     text_centered("CONTROLS:", 62, 4);
