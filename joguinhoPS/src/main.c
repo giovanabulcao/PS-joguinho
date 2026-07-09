@@ -5,9 +5,11 @@
 
 // ─── Telas ───────────────────────────────────────────────
 #define TELA_MENU     0
-#define TELA_DUNGEON  1
-#define TELA_GAMEOVER 2
-#define TELA_WIN      3
+#define TELA_HISTORIA 1
+#define TELA_DUNGEON  2
+#define TELA_GAMEOVER 3
+#define TELA_WIN      4
+
 
 // ─── Mapa ────────────────────────────────────────────────
 #define TILE  8
@@ -63,6 +65,7 @@ static int fragmentos;
 static int msg_timer;
 static char msg[32];
 static int prevBtn;
+static int historiaPag; // pag atual da hist.
 
 // ─── Inimigos ─────────────────────────────────────────────
 // Inimigos se movem tile a tile, alinhados ao grid.
@@ -129,6 +132,68 @@ static void draw_text_box(const char *s, int x, int y, uint16_t fg, uint16_t bg)
     text(s, x, y);
 }
 
+// ─── Caixinha de fala da história ──────────────
+// Desenha um balão retangular com borda, com um pequeno "rabinho"
+static void draw_speech_box(const char *l1, const char *l2, const char *l3,
+                             int x, int y, uint32_t w, uint32_t h) {
+    // fundo do balão (branco, cor 4)
+    *DRAW_COLORS = 4;
+    rect(x, y, w, h);
+ 
+    // borda externa (cor 2, azul médio) 2px
+    *DRAW_COLORS = 2;
+    rect(x, y, w, 2);                    // topo
+    rect(x, y + (int)h - 2, w, 2);       // base
+    rect(x, y, 2, h);                    // esquerda
+    rect(x + (int)w - 2, y, 2, h);       // direita
+ 
+    // "rabinho" do balão apontando pra baixo, no canto esquerdo
+    int tx = x + 14;
+    int ty = y + (int)h;
+    rect(tx, ty, 10, 8);         // corpo do rabinho
+    *DRAW_COLORS = 4;
+    rect(tx + 2, ty, 6, 6);      // preenche por dentro, deixando borda de 2px
+ 
+    // texto dentro do balão, uma linha por vez
+    *DRAW_COLORS = 2;
+    if (l1) text(l1, x + 8, y + 8);
+    if (l2) text(l2, x + 8, y + 8 + (FONT_SIZE + 4));
+    if (l3) text(l3, x + 8, y + 8 + (FONT_SIZE + 4) * 2);
+}
+ 
+// Lê um pixel (0-3) de uma sprite sheet 2bpp (mesmo formato do FRAMEBUFFER),
+// usado pra desenhar o ninja ampliado manualmente (o blitSub não tem escala).
+static int tile_pixel(int x, int y, int width) {
+    int idx = (y * width + x) >> 2;
+    int shift = (x & 0b11) << 1;
+    int mask = 0b11 << shift;
+    return (tiles4[idx] & mask) >> shift;
+}
+ 
+// Desenha uma sprite 8x8 da tiles4 ampliada por "scale", pixel a pixel.
+// Segue o mesmo mapeamento de cores do DRAW_COLORS 0x4320 usado no jogo:
+// valor 0 = transparente, 1 = cor2, 2 = cor3, 3 = cor4.
+static void draw_sprite_scaled(int dx, int dy, int srcX, int srcY, int scale) {
+    for (int sy = 0; sy < 8; sy++) {
+        for (int sx = 0; sx < 8; sx++) {
+            int v = tile_pixel(srcX + sx, srcY + sy, (int)tiles4Width);
+            if (v == 0) continue; // transparente
+            int color = (v == 1) ? 2 : (v == 2) ? 3 : 4;
+            *DRAW_COLORS = (uint16_t)color;
+            rect(dx + sx * scale, dy + sy * scale, (uint32_t)scale, (uint32_t)scale);
+        }
+    }
+}
+ 
+// desenha o ninja
+static void draw_hero_portrait(int x, int y, int scale) {
+    int c = 96;
+    int srcX = (c % 16) * 8;
+    int srcY = (c / 16) * 8;
+    draw_sprite_scaled(x, y, srcX, srcY, scale);
+}
+
+
 // ─── start() ─────────────────────────────────────────────
 void start() {
     PALETTE[0] = COR_FUNDO;
@@ -180,35 +245,127 @@ void start() {
     }
 }
 
-// ─── MENU ────────────────────────────────────────────────
+// ─── HISTORIA ────────────────────────────────────────────────
+#define HIST_PAGINAS 3
+ 
+// Layout: ninja ampliado no topo, caixa de fala abaixo dele, e uma
+// decoraçãozinha (brilho/inimigo) posicionada fora da área da caixa,
+// pra não ficar escondida atrás dela.
+#define HIST_BOX_X 6
+#define HIST_BOX_Y 48
+#define HIST_BOX_W 148
+#define HIST_BOX_H 54
+#define HIST_DECO_X 128
+#define HIST_DECO_Y 16
+ 
+static void draw_historia_fundo(int pag) {
+    // Fundo azul escuro do dungeon (cor 1) em toda a tela
+    memset(FRAMEBUFFER, 0x00, 160*160/4);
+ 
+    // Umas "pedras" decorando o topo e a base
+    *DRAW_COLORS = 2;
+    for (int c = 0; c < COLS; c++) {
+        rect(c * TILE, 0, TILE - 1, TILE - 1);
+        rect(c * TILE, 152, TILE - 1, TILE - 1);
+    }
+ 
+    // Um brilho de fragmento decorativo, sugerindo tesouro.
+    // Posicionado fora da área da caixa de fala (que ocupa
+    // y=HIST_BOX_Y..HIST_BOX_Y+HIST_BOX_H), pra não ficar escondido.
+    if (pag == 1) {
+        *DRAW_COLORS = 4;
+        rect(HIST_DECO_X + 3, HIST_DECO_Y + 0, 2, 8);
+        rect(HIST_DECO_X + 0, HIST_DECO_Y + 3, 8, 2);
+        rect(HIST_DECO_X + 3, HIST_DECO_Y + 3, 2, 2);
+    }
+ 
+    // Um inimigo espreitando ao fundo, também fora da área da caixa.
+    if (pag == 2) {
+        *DRAW_COLORS = 2;
+        rect(HIST_DECO_X + 1, HIST_DECO_Y + 1, 6, 6);
+        *DRAW_COLORS = 3;
+        rect(HIST_DECO_X + 2, HIST_DECO_Y + 2, 2, 2);
+        rect(HIST_DECO_X + 4, HIST_DECO_Y + 2, 2, 2);
+    }
+}
+ 
+static void update_historia() {
+    uint8_t btn = *GAMEPAD1;
+    uint8_t pressed = btn & ~(uint8_t)prevBtn;
+    prevBtn = btn;
+ 
+    draw_historia_fundo(historiaPag);
+ 
+    // Ninja ampliado (3x = 24x24px), centralizado no topo da tela
+    draw_hero_portrait(68, 14, 3);
+ 
+    // Falas com no máximo 16 caracteres por linha, pra caber direitinho
+    // dentro da largura da caixa (HIST_BOX_W - padding = 128px = 16 chars)
+    if (historiaPag == 0) {
+        draw_speech_box("I'm Kiro, hunter",
+                         "of cursed loot,",
+                         "and bad puns!",
+                         HIST_BOX_X, HIST_BOX_Y, HIST_BOX_W, HIST_BOX_H);
+    } else if (historiaPag == 1) {
+        draw_speech_box("Rumor has it,",
+                         "shiny shards",
+                         "hide down here.",
+                         HIST_BOX_X, HIST_BOX_Y, HIST_BOX_W, HIST_BOX_H);
+    } else {
+        draw_speech_box("Only one catch:",
+                         "it's crawling",
+                         "with angry mobs!",
+                         HIST_BOX_X, HIST_BOX_Y, HIST_BOX_W, HIST_BOX_H);
+    }
+ 
+    text_centered("MAZE ESCAPE", 130, 4);
+ 
+    if ((frames / 20) % 2 == 0) {
+        text_centered("Press a button", 144, 3);
+    }
+ 
+    // qualquer botão avança a página (ou entra na dungeon na última)
+    if (pressed != 0) {
+        if (historiaPag < HIST_PAGINAS - 1) {
+            historiaPag++;
+            
+        } else {
+            telaAtual = TELA_DUNGEON;
+            
+        }
+    }
+}
+ 
 static void update_menu() {
     uint8_t btn = *GAMEPAD1;
     uint8_t pressed = btn & ~(uint8_t)prevBtn;
     prevBtn = btn;
-
-    // Preenche a tela inteira com a cor de fundo 2 (PALETTE[1], marrom),
-    // diferente do creme usado no texto, melhorando o contraste.
+ 
+    // Preenche a tela inteira com a cor de fundo 2 (PALETTE[1], azul médio),
+    // diferente do branco usado no texto, melhorando o contraste.
     // 0b01010101 == 0x55 (não 0x66!): cada byte guarda 4 pixels de 2 bits,
     // e repetir o valor bruto 1 (cor 2) em cada um deles dá 01 01 01 01 = 0x55.
     memset(FRAMEBUFFER, 0x55, 160*160/4);
-
-    text_centered("-----------", 42, 3);
+ 
+    text_centered("------------", 22, 3);
     text_centered("MAZE ESCAPE", 32, 4);
-    text_centered("-----------", 42, 3);
-
+    text_centered("------------", 42, 3);
+ 
     text_centered("CONTROLS:", 62, 4);
     // \x84 \x85 \x86 \x87 = setas esquerda/direita/cima/baixo, \x80 = botao X
-    text_centered("\x84\x85\x86\x87 - Move", 78, 3);
-    text_centered("\x80 - Collect shard", 90, 3);
-
+    text("\x84\x85\x86\x87 - Move", 14, 80);
+    text("\x80 - Collect shard", 14, 90);
+ 
     if ((frames / 20) % 2 == 0) {
         text_centered("Press \x80 to play", 118, 4);
     }
-
+ 
     if (pressed & BUTTON_1) {
-        telaAtual = TELA_DUNGEON;
+        telaAtual = TELA_HISTORIA;
     }
 }
+ 
+
 
 // ─── DUNGEON ─────────────────────────────────────────────
 static void draw_map() {
@@ -429,7 +586,7 @@ static void update_gameover() {
     text_centered("GAME OVER", 50, 2);
     text_centered("Caught by enemy!", 64, 3);
 
-    // monta "Shards: N/5" numa string só, pra dar pra centralizar de uma vez
+    // monta "Shards: N/6" numa string só, pra dar pra centralizar de uma vez
     char linha[24];
     int i = 0;
     const char *rotulo = "Shards: ";
@@ -439,7 +596,7 @@ static void update_gameover() {
     int j = 0;
     while (num[j]) { linha[i++] = num[j++]; }
     linha[i++] = '/';
-    linha[i++] = '5';
+    linha[i++] = '6';
     linha[i] = '\0';
     text_centered(linha, 90, 4);
 
@@ -462,7 +619,7 @@ static void update_win() {
     uint16_t cor_piscando = ((frames / 10) % 2 == 0) ? 4 : 3;
     text_centered("YOU ESCAPED!", 40, cor_piscando);
 
-    text_centered("All 5 shards", 64, 3);
+    text_centered("All 6 shards", 64, 3);
     text_centered("collected!", 74, 3);
     text_centered("The exit is open!", 90, 3);
 
@@ -479,9 +636,11 @@ static void update_win() {
 
 // ─── update() ────────────────────────────────────────────
 void update() {
-    frames++;
+        frames++;
     if(telaAtual==TELA_MENU){
         update_menu();
+    }else if(telaAtual==TELA_HISTORIA){
+        update_historia();
     }else if(telaAtual==TELA_DUNGEON){
         update_dungeon();
     }else if(telaAtual==TELA_GAMEOVER){
@@ -490,4 +649,3 @@ void update() {
         update_win();
     }
 }
-
