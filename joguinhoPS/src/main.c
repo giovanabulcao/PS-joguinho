@@ -161,36 +161,50 @@ static void draw_speech_box(const char *l1, const char *l2, const char *l3,
     if (l3) text(l3, x + 8, y + 8 + (FONT_SIZE + 4) * 2);
 }
  
-// Lê um pixel (0-3) de uma sprite sheet 2bpp (mesmo formato do FRAMEBUFFER),
-// usado pra desenhar o ninja ampliado manualmente (o blitSub não tem escala).
+// Lê um pixel (0-3) de uma sprite sheet 2bpp. Sprites do WASM-4 guardam o
+// pixel mais à esquerda nos bits MAIS significativos de cada byte (ordem
+// diferente do FRAMEBUFFER, que é LSB-first) — por isso o shift é invertido
+// aqui em relação ao pget()/pset() do util.c.
 static int tile_pixel(int x, int y, int width) {
     int idx = (y * width + x) >> 2;
-    int shift = (x & 0b11) << 1;
+    int shift = (3 - (x & 0b11)) << 1;
     int mask = 0b11 << shift;
     return (tiles4[idx] & mask) >> shift;
 }
  
-// Desenha uma sprite 8x8 da tiles4 ampliada por "scale", pixel a pixel.
-// Segue o mesmo mapeamento de cores do DRAW_COLORS 0x4320 usado no jogo:
-// valor 0 = transparente, 1 = cor2, 2 = cor3, 3 = cor4.
-static void draw_sprite_scaled(int dx, int dy, int srcX, int srcY, int scale) {
+// Desenha uma sprite 8x8 da tiles4 ampliada por "scale", pixel a pixel,
+// usando o MESMO mapeamento de cores (DRAW_COLORS) usado pelo sprite real
+// no jogo — assim o retrato ampliado fica idêntico ao personagem/inimigo
+// de verdade, em vez de ter cores inventadas à parte.
+// colorMap segue o formato do DRAW_COLORS: nibble 0 = cor pro valor de
+// pixel 0, nibble 1 = cor pro valor 1, e assim por diante (0 = transparente).
+static void draw_sprite_scaled(int dx, int dy, int srcX, int srcY, int scale, uint16_t colorMap) {
     for (int sy = 0; sy < 8; sy++) {
         for (int sx = 0; sx < 8; sx++) {
             int v = tile_pixel(srcX + sx, srcY + sy, (int)tiles4Width);
-            if (v == 0) continue; // transparente
-            int color = (v == 1) ? 2 : (v == 2) ? 3 : 4;
+            int color = (colorMap >> (v * 4)) & 0xF;
+            if (color == 0) continue; // transparente
             *DRAW_COLORS = (uint16_t)color;
             rect(dx + sx * scale, dy + sy * scale, (uint32_t)scale, (uint32_t)scale);
         }
     }
 }
- 
-// desenha o ninja
+
+// desenha o ninja com o mesmo mapeamento de cor do draw_player() (0x4230)
 static void draw_hero_portrait(int x, int y, int scale) {
     int c = 96;
     int srcX = (c % 16) * 8;
     int srcY = (c / 16) * 8;
-    draw_sprite_scaled(x, y, srcX, srcY, scale);
+    draw_sprite_scaled(x, y, srcX, srcY, scale, 0x4230);
+}
+
+// desenha a caveirinha inimiga com o mesmo mapeamento de cor do
+// draw_enemies() (0x4010), pra ficar idêntica ao inimigo real da dungeon
+static void draw_skull_portrait(int x, int y, int scale, int frame) {
+    int c = 112 + (frame % 2);
+    int srcX = (c % 16) * 8;
+    int srcY = (c / 16) * 8;
+    draw_sprite_scaled(x, y, srcX, srcY, scale, 0x4010);
 }
 
 
@@ -215,29 +229,29 @@ void start() {
     prevBtn    = 0;
     telaAtual  = TELA_MENU;
 
-    // Inimigo 0: horizontal, linha 1, col 7..18
-    enemies[0].col = 5;  enemies[0].row = 2;
-    enemies[0].dir = 0;  enemies[0].axis = 0; enemies[0].speed = 20;
+    // Inimigo 0: horizontal, linha 1, corredor cols 7..18 (12 tiles livres)
+    enemies[0].col = 7; enemies[0].row = 2;
+    enemies[0].dir = 0;  enemies[0].axis = 0; enemies[0].speed = 18;
 
-    // Inimigo 1: vertical, col 16, linha 1..7
-    enemies[1].col = 17; enemies[1].row = 7;
+    // Inimigo 1: vertical, col 1, corredor linhas 1..9 (9 tiles livres)
+    enemies[1].col = 18;  enemies[1].row = 7;
     enemies[1].dir = 0;  enemies[1].axis = 1; enemies[1].speed = 20;
 
-    // Inimigo 2: horizontal, linha 9, col 6..11
-    enemies[2].col = 10;  enemies[2].row = 10;
-    enemies[2].dir = 0;  enemies[2].axis = 0; enemies[2].speed = 20;
+    // Inimigo 2: horizontal, linha 9, corredor cols 6..11
+    enemies[2].col = 10;  enemies[2].row = 9;
+    enemies[2].dir = 0;  enemies[2].axis = 0; enemies[2].speed = 16;
 
-    // Inimigo 3: vertical, col 6, linha 9..18
-    enemies[3].col = 12;  enemies[3].row = 15;
-    enemies[3].dir = 1;  enemies[3].axis = 1; enemies[3].speed = 20;
+    // Inimigo 3: vertical, col 12, corredor linhas 11..15
+    enemies[3].col = 12; enemies[3].row = 13;
+    enemies[3].dir = 0;  enemies[3].axis = 1; enemies[3].speed = 20;
 
-    // Inimigo 4: horizontal, linha 15, col 2..12
-    enemies[4].col = 7;  enemies[4].row = 16;
-    enemies[4].dir = 0;  enemies[4].axis = 0; enemies[4].speed = 20;
+    // Inimigo 4: horizontal, linha 17, corredor cols 4..14 (11 tiles livres)
+    enemies[4].col = 7;  enemies[4].row = 17;
+    enemies[4].dir = 0;  enemies[4].axis = 0; enemies[4].speed = 14;
 
-    // Inimigo 5: vertical, col 18, linha 1..17
-    enemies[5].col = 16; enemies[5].row = 16;
-    enemies[5].dir = 1;  enemies[5].axis = 1; enemies[5].speed = 20;
+    // Inimigo 5: vertical, col 18, corredor linhas 1..9
+    enemies[5].col = 14; enemies[5].row = 16;
+    enemies[5].dir = 0;  enemies[5].axis = 1; enemies[5].speed = 17;
 
     for (int i = 0; i < NUM_ENEMIES; i++) {
         enemies[i].timer   = 0;
@@ -279,13 +293,10 @@ static void draw_historia_fundo(int pag) {
         rect(HIST_DECO_X + 3, HIST_DECO_Y + 3, 2, 2);
     }
  
-    // Um inimigo espreitando ao fundo, também fora da área da caixa.
+    // Um inimigo espreitando ao fundo — a mesma caveirinha da dungeon,
+    // animada, em vez de um retângulo desenhado à mão.
     if (pag == 2) {
-        *DRAW_COLORS = 2;
-        rect(HIST_DECO_X + 1, HIST_DECO_Y + 1, 6, 6);
-        *DRAW_COLORS = 3;
-        rect(HIST_DECO_X + 2, HIST_DECO_Y + 2, 2, 2);
-        rect(HIST_DECO_X + 4, HIST_DECO_Y + 2, 2, 2);
+        draw_skull_portrait(HIST_DECO_X, HIST_DECO_Y, 2, frames / 10);
     }
 }
  
@@ -466,53 +477,56 @@ static void update_enemies() {
         }
 
         enemies[i].timer++;
-        if (enemies[i].timer < velocidade) continue;
-        enemies[i].timer = 0;
+        if (enemies[i].timer >= velocidade) {
+            enemies[i].timer = 0;
 
-        if (enemies[i].chasing == 1) {
-            // Perseguição: anda um passo na direção do jogador.
-            // Primeiro tenta alinhar a coluna, depois a linha.
-            int nc = enemies[i].col;
-            int nr = enemies[i].row;
+            if (enemies[i].chasing == 1) {
+                // Perseguição: anda um passo na direção do jogador.
+                // Primeiro tenta alinhar a coluna, depois a linha.
+                int nc = enemies[i].col;
+                int nr = enemies[i].row;
 
-            if (pcol > enemies[i].col) {
-                nc = nc + 1;
-            } else if (pcol < enemies[i].col) {
-                nc = nc - 1;
-            } else if (prow > enemies[i].row) {
-                nr = nr + 1;
-            } else if (prow < enemies[i].row) {
-                nr = nr - 1;
-            }
+                if (pcol > enemies[i].col) {
+                    nc = nc + 1;
+                } else if (pcol < enemies[i].col) {
+                    nc = nc - 1;
+                } else if (prow > enemies[i].row) {
+                    nr = nr + 1;
+                } else if (prow < enemies[i].row) {
+                    nr = nr - 1;
+                }
 
-            if (map_at(nc, nr) != T_WALL) {
-                enemies[i].col = nc;
-                enemies[i].row = nr;
-            }
-        } else {
-            // Patrulha normal: anda sempre pra frente no mesmo eixo,
-            // e vira quando bate numa parede.
-            int nc = enemies[i].col;
-            int nr = enemies[i].row;
-
-            if (enemies[i].axis == 0) {
-                nc += (enemies[i].dir == 0 ? 1 : -1);
-                if (map_at(nc, nr) == T_WALL) {
-                    enemies[i].dir = 1 - enemies[i].dir;
-                } else {
+                if (map_at(nc, nr) != T_WALL) {
                     enemies[i].col = nc;
+                    enemies[i].row = nr;
                 }
             } else {
-                nr += (enemies[i].dir == 0 ? 1 : -1);
-                if (map_at(nc, nr) == T_WALL) {
-                    enemies[i].dir = 1 - enemies[i].dir;
+                // Patrulha normal: anda sempre pra frente no mesmo eixo,
+                // e vira quando bate numa parede.
+                int nc = enemies[i].col;
+                int nr = enemies[i].row;
+
+                if (enemies[i].axis == 0) {
+                    nc += (enemies[i].dir == 0 ? 1 : -1);
+                    if (map_at(nc, nr) == T_WALL) {
+                        enemies[i].dir = 1 - enemies[i].dir;
+                    } else {
+                        enemies[i].col = nc;
+                    }
                 } else {
-                    enemies[i].row = nr;
+                    nr += (enemies[i].dir == 0 ? 1 : -1);
+                    if (map_at(nc, nr) == T_WALL) {
+                        enemies[i].dir = 1 - enemies[i].dir;
+                    } else {
+                        enemies[i].row = nr;
+                    }
                 }
             }
         }
 
-        // colisão com jogador
+        // colisão com jogador — checada TODO frame (não só quando o
+        // inimigo se move), senão dá pra atravessar um inimigo parado
+        // sem morrer até ele dar o próximo passo.
         if (enemies[i].col == pcol && enemies[i].row == prow) {
             telaAtual = TELA_GAMEOVER;
         }
