@@ -14,14 +14,14 @@ Fast reflexes and a good sense of direction are your best weapons. **Good luck!!
 - Collect the **6 shards** scattered across the maze.
 - If an enemy catches you, it's **game over**.
 - Some enemies patrol fixed routes, but start **chasing** the player once he gets close.
-- The exit (marked with `>`) only unlocks victory once **all 6 shards** have been collected.
+- The exit is a **flashing tile** at the far end of the maze — it only unlocks victory once **all 6 shards** have been collected. Step on it too early and you'll just get a warning telling you shards are missing.
 
 ## Controls
 
-| Button | Action                  |
-|--------|--------------------------|
-| Arrows | Move through the maze    |
-| X      | Start / Collect shard    |
+| Button | Action                                          |
+|--------|--------------------------------------------------|
+| Arrows | Move through the maze                            |
+| X      | Confirm / Collect shard / Retry after game over or win |
 
 ---
 
