@@ -13,45 +13,45 @@
 
 void play(int id) {
     if (id == SFX_SELECT) {
-        int attack = 12;
-        int decay = 6;
-        int duracao = attack + decay * 256;
+        uint32_t attack = 12;
+        uint32_t decay = 6;
+        uint32_t duracao = attack + decay * 256;
         tone(880, duracao, 80, TONE_PULSE1 | TONE_MODE3);
     }
     else if (id == SFX_MOVE) {
         tone(700, 6, 70, TONE_TRIANGLE);
     }
     else if (id == SFX_SHARD) {
-        int freq1 = 988;
-        int freq2 = 1319;
-        int freq = freq1 + freq2 * 65536;
-        int attack = 8;
-        int decay = 18;
-        int duracao = attack + decay * 256;
+        uint32_t freq1 = 988;
+        uint32_t freq2 = 1319;
+        uint32_t freq = freq1 + freq2 * 65536;
+        uint32_t attack = 8;
+        uint32_t decay = 18;
+        uint32_t duracao = attack + decay * 256;
         tone(freq, duracao, 90, TONE_PULSE1 | TONE_MODE2);
     }
     else if (id == SFX_HURT) {
-        int freq1 = 440;
-        int freq2 = 220;
-        int freq = freq1 + freq2 * 65536;
-        int attack = 18;
-        int decay = 10;
-        int duracao = attack + decay * 256;
+        uint32_t freq1 = 440;
+        uint32_t freq2 = 220;
+        uint32_t freq = freq1 + freq2 * 65536;
+        uint32_t attack = 18;
+        uint32_t decay = 10;
+        uint32_t duracao = attack + decay * 256;
         tone(freq, duracao, 90, TONE_PULSE1 | TONE_MODE2);
     }
     else if (id == SFX_WIN) {
-        int freq1 = 523;
-        int freq2 = 1047;
-        int freq = freq1 + freq2 * 65536;
-        int attack = 30;
-        int decay = 20;
-        int duracao = attack + decay * 256;
+        uint32_t freq1 = 523;
+        uint32_t freq2 = 1047;
+        uint32_t freq = freq1 + freq2 * 65536;
+        uint32_t attack = 30;
+        uint32_t decay = 20;
+        uint32_t duracao = attack + decay * 256;
         tone(freq, duracao, 90, TONE_PULSE1 | TONE_MODE2);
     }
     else if (id == SFX_BLOCK) {
-        int attack = 10;
-        int decay = 6;
-        int duracao = attack + decay * 256;
+        uint32_t attack = 10;
+        uint32_t decay = 6;
+        uint32_t duracao = attack + decay * 256;
         tone(800, duracao, 80, TONE_NOISE);
     }
 }
@@ -62,7 +62,6 @@ void play(int id) {
 #define TELA_DUNGEON  2
 #define TELA_GAMEOVER 3
 #define TELA_WIN      4
-
 
 // mapa
 #define TILE  8
@@ -157,7 +156,7 @@ static void set_msg(const char *s) {
 
 // centraliza um texto na tela
 static void text_centered(const char *s, int y, uint16_t color) {
-    int tamanho = strlen(s);
+    int tamanho = (int)strlen(s);
     int x = (SCREEN_SIZE - tamanho * FONT_SIZE) / 2;
     *DRAW_COLORS = color;
     text(s, x, y);
@@ -165,15 +164,14 @@ static void text_centered(const char *s, int y, uint16_t color) {
 
 // texto com uma caixinha de fundo atras
 static void draw_text_box(const char *s, int x, int y, uint16_t fg, uint16_t bg) {
-    int tamanho = strlen(s);
-
+    int tamanho = (int)strlen(s);
     int padX = 3;
     int padY = 2;
     int largura = tamanho * FONT_SIZE + padX * 2;
     int altura = FONT_SIZE + padY * 2;
 
     *DRAW_COLORS = bg;
-    rect(x - padX, y - padY, largura, altura);
+    rect(x - padX, y - padY, (uint32_t)largura, (uint32_t)altura);
 
     *DRAW_COLORS = fg;
     text(s, x, y);
@@ -183,13 +181,13 @@ static void draw_text_box(const char *s, int x, int y, uint16_t fg, uint16_t bg)
 static void draw_speech_box(const char *l1, const char *l2, const char *l3,
                              int x, int y, int w, int h) {
     *DRAW_COLORS = 4;
-    rect(x, y, w, h);
+    rect(x, y, (uint32_t)w, (uint32_t)h);
 
     *DRAW_COLORS = 2;
-    rect(x, y, w, 2);
-    rect(x, y + h - 2, w, 2);
-    rect(x, y, 2, h);
-    rect(x + w - 2, y, 2, h);
+    rect(x, y, (uint32_t)w, 2);
+    rect(x, y + h - 2, (uint32_t)w, 2);
+    rect(x, y, 2, (uint32_t)h);
+    rect(x + w - 2, y, 2, (uint32_t)h);
 
     int tx = x + 14;
     int ty = y + h;
@@ -247,7 +245,7 @@ static void draw_sprite_scaled(int dx, int dy, int srcX, int srcY, int scale, ui
             }
 
             *DRAW_COLORS = (uint16_t)cor;
-            rect(dx + sx * scale, dy + sy * scale, scale, scale);
+            rect(dx + sx * scale, dy + sy * scale, (uint32_t)scale, (uint32_t)scale);
         }
     }
 }
@@ -376,15 +374,9 @@ static void update_historia() {
                          "with angry mobs!",
                          HIST_BOX_X, HIST_BOX_Y, HIST_BOX_W, HIST_BOX_H);
     }
-<<<<<<< Updated upstream
- 
-    text_centered("DUNGEONS OF SHARDS", 130, 4);
- 
-=======
 
     text_centered("MAZE ESCAPE", 130, 4);
 
->>>>>>> Stashed changes
     if ((frames / 20) % 2 == 0) {
         text_centered("Press a button", 144, 3);
     }
@@ -410,7 +402,7 @@ static void update_menu() {
     rect(0, 0, 160, 160);
 
     text_centered("------------", 22, 3);
-    text_centered("DUNGEONS OF SHARDS", 32, 4);
+    text_centered("MAZE ESCAPE", 32, 4);
     text_centered("------------", 42, 3);
 
     text_centered("CONTROLS:", 62, 4);
