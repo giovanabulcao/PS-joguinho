@@ -165,6 +165,10 @@ static void text_centered(const char *s, int y, uint16_t color) {
 // texto com uma caixinha de fundo atras
 static void draw_text_box(const char *s, int x, int y, uint16_t fg, uint16_t bg) {
     int tamanho = (int)strlen(s);
+<<<<<<< HEAD:src/main.c
+=======
+
+>>>>>>> 8d192adf364259d5bbccfdcd7e2ee2ad71d5ed13:joguinhoPS/src/main.c
     int padX = 3;
     int padY = 2;
     int largura = tamanho * FONT_SIZE + padX * 2;
@@ -289,21 +293,27 @@ void start() {
     prevBtn    = 0;
     telaAtual  = TELA_MENU;
 
+    //inicializa inimigos
+    // inimigo 0
     enemies[0].col = 7;  enemies[0].row = 2;
     enemies[0].dir = 0;  enemies[0].axis = 0; enemies[0].speed = 18;
-
+    // inimigo 1
     enemies[1].col = 18; enemies[1].row = 7;
     enemies[1].dir = 0;  enemies[1].axis = 1; enemies[1].speed = 20;
 
+    // inimigo 2
     enemies[2].col = 10; enemies[2].row = 9;
     enemies[2].dir = 0;  enemies[2].axis = 0; enemies[2].speed = 16;
 
+    // inimigo 3
     enemies[3].col = 12; enemies[3].row = 13;
     enemies[3].dir = 0;  enemies[3].axis = 1; enemies[3].speed = 20;
 
+    // inimigo 4
     enemies[4].col = 7;  enemies[4].row = 17;
     enemies[4].dir = 0;  enemies[4].axis = 0; enemies[4].speed = 14;
 
+    // inimigo 5 
     enemies[5].col = 14; enemies[5].row = 16;
     enemies[5].dir = 0;  enemies[5].axis = 1; enemies[5].speed = 17;
 
@@ -375,7 +385,7 @@ static void update_historia() {
                          HIST_BOX_X, HIST_BOX_Y, HIST_BOX_W, HIST_BOX_H);
     }
 
-    text_centered("MAZE ESCAPE", 130, 4);
+    text_centered("DUNGEON OF SHARDS", 130, 4);
 
     if ((frames / 20) % 2 == 0) {
         text_centered("Press a button", 144, 3);
@@ -397,18 +407,23 @@ static void update_menu() {
     uint8_t pressed = btn & ~(uint8_t)prevBtn;
     prevBtn = btn;
 
-    // pinta a tela toda com a cor 2 (azul medio)
-    *DRAW_COLORS = 2;
+    // pinta a tela toda com a cor de fundo
+    *DRAW_COLORS = 1;
     rect(0, 0, 160, 160);
 
+<<<<<<< HEAD:src/main.c
     text_centered("------------", 22, 3);
     text_centered("MAZE ESCAPE", 32, 4);
     text_centered("------------", 42, 3);
+=======
+    text_centered("-------------------", 22, 3);
+    text_centered("DUNGEON OF SHARDS", 32, 4);
+    text_centered("-------------------", 42, 3);
+>>>>>>> 8d192adf364259d5bbccfdcd7e2ee2ad71d5ed13:joguinhoPS/src/main.c
 
     text_centered("CONTROLS:", 62, 4);
     // \x84 \x85 \x86 \x87 sao as setas, \x80 e o botao X
-    text("\x84\x85\x86\x87 - Move", 14, 80);
-    text("\x80 - Collect shard", 14, 90);
+    text_centered("\x84\x85\x86\x87 - Move", 80, 4);
 
     if ((frames / 20) % 2 == 0) {
         text_centered("Press \x80 to play", 118, 4);
@@ -610,16 +625,6 @@ static void update_dungeon() {
     if (map_at(nc, nr) != T_WALL) {
         pcol = nc;
         prow = nr;
-    }
-
-    // pega o shard apertando X em cima dele
-    if (pressed & BUTTON_1) {
-        if (map_at(pcol, prow) == T_SHARD) {
-            play(SFX_SHARD);
-            fragmentos = fragmentos + 1;
-            map[prow][pcol] = T_FLOOR;
-            set_msg("Shard collected!");
-        }
     }
 
     // tambem pega o shard so de andar em cima
