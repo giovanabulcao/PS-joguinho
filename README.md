@@ -1,7 +1,7 @@
-# Jogo desenvolvido na disciplina de Programação de Sistemas do curso de Ciência da Computação.
+## Jogo desenvolvido na disciplina de Programação de Sistemas do curso de Ciência da Computação.
 Nome: Giovana da Silva Bulcão/ra144325 e Cintia da Silva Bulcão/ra145107
 
-Especificação do Protótipo:
+### Especificação do Protótipo:
 Nome do jogo: Maze escape
 O objetivo do jogador é explorar um labirinto, coletar os 5 fragmentos espalhados pelo mapa e, em seguida, encontrar a saída, desviando dos inimigos.
 
@@ -22,3 +22,4 @@ Entrada: Teclado, mouse, tela sensível ao toque, até 4 gamepads.
 Áudio: 2 canais de onda de pulso, 1 canal de onda triângulo, 1 canal de ruído.
 Armazenamento de disco: 1024 bytes.
 
+Jogo desenvolvido durante a disciplina de Programação de Sistemas da Universidade Estadual de Maringá (UEM) sobre tutoria do professor Marcelo Gomensoro
